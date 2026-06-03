@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberDefense SOC - Canlı Log Akışı</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #12141c; color: #e4e6eb; font-family: 'Segoe UI', sans-serif; }
+        .sidebar { background-color: #1a1d29; min-height: 100vh; border-right: 1px solid #2d3248; }
+        .sidebar .nav-link { color: #a0aec0; padding: 12px 20px; margin: 4px 0; border-radius: 8px; }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active { background-color: #24293d; color: #00dbc6; }
+        .card { background-color: #1a1d29; border: 1px solid #2d3248; }
+        .table { color: #e4e6eb; }
+        .table-dark { background-color: #1a1d29; }
+        .code-log { color: #ff79c6; font-family: 'Courier New', Courier, monospace; }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-2 sidebar p-3 d-flex flex-column">
+            <div class="text-center my-3">
+                <h5 class="text-info fw-bold"><i class="fa-solid fa-shield-halved"></i> CD-SOC</h5>
+                <small class="text-muted">CyberDefense v1.0</small>
+            </div>
+            <hr class="text-secondary">
+            <ul class="nav nav-pills flex-column mb-auto">
+                <li><a href="/" class="nav-link"><i class="fa-solid fa-chart-pie me-2"></i> Dashboard</a></li>
+                <li><a href="/assets" class="nav-link"><i class="fa-solid fa-server me-2"></i> Cihaz Envanteri</a></li>
+                <li><a href="/zafiyetler" class="nav-link"><i class="fa-solid fa-bug me-2"></i> Zafiyet Tara</a></li>
+                <li><a href="/loglar" class="nav-link active"><i class="fa-solid fa-terminal me-2"></i> Canlı Log Akışı</a></li>
+            </ul>
+        </div>
+
+        <div class="col-md-10 p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fa-solid fa-terminal text-success"></i> SIEM & Canlı Log Akışı</h2>
+                <button class="btn btn-success text-dark fw-bold" data-bs-toggle="modal" data-bs-target="#addLogModal">
+                    <i class="fa-solid fa-plus"></i> Simüle Log Üret
+                </button>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                {% for category, message in messages %}
+                  <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
+                  </div>
+                {% endfor %}
+              {% endif %}
+            {% endwith %}
+
+            <div class="card p-3 shadow">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>ID</th>
+                                <th>Kaynak Cihaz</th>
+                                <th>Log Türü</th>
+                                <th>Log Mesajı</th>
+                                <th>İnceleme Durumu</th>
+                                <th>Atanan Analist</th>
+                                <th>Olay Zamanı</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if loglar %}
+                                {% for log in loglar %}
+                                <tr>
+                                    <td>{{ log.ID }}</td>
+                                    <td class="text-info fw-bold">{{ log.Cihaz }}</td>
+                                    <td><span class="badge bg-secondary">{{ log.Tür }}</span></td>
+                                    <td class="code-log">{{ log.Mesaj }}</td>
+                                    <td>
+                                        {% if log.Durum == 'Yeni' %}
+                                            <span class="badge bg-primary">Yeni</span>
+                                        {% elif log.Durum == 'İncelemede' %}
+                                            <span class="badge bg-warning text-dark">İncelemede</span>
+                                        {% else %}
+                                            <span class="badge bg-success">Kapatıldı</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ log.Analist if log.Analist else '<span class="text-muted small">Atanmadı</span>' | safe }}</td>
+                                    <td class="text-muted small">{{ log.Zaman }}</td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-4">Sistemde henüz güvenlik logu tetiklenmedi.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addLogModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-success"><i class="fa-solid fa-bug"></i> Güvenlik Olayı Simüle Et</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/loglar/add" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Kaynak Cihaz (Asset)</label>
+                        <select name="asset_id" class="form-select bg-secondary text-white border-0" required>
+                            {% for asset in assets %}
+                                <option value="{{ asset.ID }}">{{ asset.Cihaz }} ({{ asset.IP }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Log Türü</label>
+                        <select name="log_turu" class="form-select bg-secondary text-white border-0" required>
+                            <option value="Authentication">Authentication</option>
+                            <option value="Firewall">Firewall</option>
+                            <option value="IDS/IPS">IDS/IPS</option>
+                            <option value="System">System</option>
+                            <option value="Network">Network</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Log Mesajı</label>
+                        <textarea name="log_mesaji" class="form-control bg-secondary text-white border-0" rows="3" placeholder="Örn: Brute force attack detected on port 22" required></textarea>
+                        <small class="text-muted">İpucu: İçinde 'CRITICAL' veya 'ATTACK' geçen bir mesaj yazarak Trigger'ın çalışmasını test edebilirsin!</small>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-success text-dark fw-bold">Log Tetikle</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
